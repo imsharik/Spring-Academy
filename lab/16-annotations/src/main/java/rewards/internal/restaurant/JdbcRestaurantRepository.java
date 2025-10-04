@@ -1,15 +1,21 @@
 package rewards.internal.restaurant;
 
-import common.money.Percentage;
-import org.springframework.dao.EmptyResultDataAccessException;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.stereotype.Repository;
+
+import common.money.Percentage;
 
 /**
  * Loads restaurants from a data source using the JDBC API.
@@ -42,8 +48,17 @@ import java.util.Map;
  * - Examine the stack trace and see if you can
  *   understand why. (If not, refer to lab document).
  *   We will fix this error in the next step.
+ *   
+ *   ---------ANswer-------------------
+ *   
+ *   the default constructor is now used by Spring instead of the alternate constructor. 
+ *   This means the populateRestaurantCache() is never called. 
+ *   Moving this method to the default constructor will not address the issue 
+ *   as it requires the datasource to be set first. 
+ *   Instead, we need to cause populateRestaurantCache() to be executed after 
+ *   all initialization is complete.
  */
-
+@Repository
 public class JdbcRestaurantRepository implements RestaurantRepository {
 
 	private DataSource dataSource;
@@ -59,15 +74,16 @@ public class JdbcRestaurantRepository implements RestaurantRepository {
 	 * restaurants. When the instance of JdbcRestaurantRepository is created, a
 	 * Restaurant cache is populated for read only access
 	 */
-
+	// @PostConstruct annotation to call populateRestaurantCache
 	public JdbcRestaurantRepository(DataSource dataSource) {
 		this.dataSource = dataSource;
-		this.populateRestaurantCache();
+		//this.populateRestaurantCache();
 	}
 
 	public JdbcRestaurantRepository() {
 	}
 
+	@Autowired
 	public void setDataSource(DataSource dataSource) {
 		this.dataSource = dataSource;
 	}
@@ -92,6 +108,7 @@ public class JdbcRestaurantRepository implements RestaurantRepository {
 	 *   the constructor, is a better practice.
 	 */
 
+	@PostConstruct
 	void populateRestaurantCache() {
 		restaurantCache = new HashMap<String, Restaurant>();
 		String sql = "select MERCHANT_NUMBER, NAME, BENEFIT_PERCENTAGE from T_RESTAURANT";
@@ -166,8 +183,12 @@ public class JdbcRestaurantRepository implements RestaurantRepository {
 	 * - Re-run the test and you should be able to see
 	 *   that this method is now being called.
 	 */
+	
+	@PreDestroy
 	public void clearRestaurantCache() {
 		restaurantCache.clear();
+		System.out.println("clearRestaurantCache invoked");
+
 	}
 
 	/**
